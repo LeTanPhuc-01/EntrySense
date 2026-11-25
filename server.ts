@@ -209,8 +209,13 @@ function getOrCreateLot(lotId?: string): LotInternalState {
   return lot;
 }
 
-function getIngestKey(): string {
-  return (process.env.ENTRYSENSE_INGEST_KEY || '').trim();
+type AuthenticatedPublisher = 'pc' | 'pi' | 'shared';
+
+function constantTimeEquals(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a, 'utf8');
+  const bBuf = Buffer.from(b, 'utf8');
+  if (aBuf.length !== bBuf.length) return false;
+  return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
 function checkRateLimit(keyId: string): boolean {
@@ -232,11 +237,15 @@ function checkRateLimit(keyId: string): boolean {
   return true;
 }
 
-function verifyIngestAuthAndRateLimit(req: Request, res: Response): boolean {
-  const configuredKey = getIngestKey();
-  if (!configuredKey) {
-    res.status(503).json({error: 'Ingest key is not configured on the server.'});
-    return false;
+function verifyIngestAuthAndRateLimit(req: Request, res: Response): AuthenticatedPublisher | null {
+  const pcKey = (process.env.INGEST_KEY_PC || '').trim();
+  const piKey = (process.env.INGEST_KEY_PI || '').trim();
+  const legacyKey = (process.env.ENTRYSENSE_INGEST_KEY || '').trim();
+
+  const hasPerPublisherKeys = pcKey.length > 0 || piKey.length > 0;
+  if (!hasPerPublisherKeys && legacyKey.length === 0) {
+    res.status(503).json({error: 'Ingest keys are not configured on the server.'});
+    return null;
   }
 
   const authHeader = req.header('authorization') || '';
@@ -248,23 +257,32 @@ function verifyIngestAuthAndRateLimit(req: Request, res: Response): boolean {
 
   if (!provided) {
     res.status(401).json({error: 'Missing or invalid bearer token.'});
-    return false;
+    return null;
   }
 
-  const expectedBuf = Buffer.from(configuredKey, 'utf8');
-  const providedBuf = Buffer.from(provided, 'utf8');
-  if (expectedBuf.length !== providedBuf.length || !crypto.timingSafeEqual(expectedBuf, providedBuf)) {
+  let publisher: AuthenticatedPublisher | null = null;
+  if (hasPerPublisherKeys) {
+    const matchesPc = pcKey.length > 0 && constantTimeEquals(pcKey, provided);
+    const matchesPi = piKey.length > 0 && constantTimeEquals(piKey, provided);
+    if (matchesPc && !matchesPi) publisher = 'pc';
+    else if (matchesPi && !matchesPc) publisher = 'pi';
+    else if (matchesPc && matchesPi) publisher = 'shared';
+  } else if (constantTimeEquals(legacyKey, provided)) {
+    publisher = 'shared';
+  }
+
+  if (!publisher) {
     res.status(401).json({error: 'Missing or invalid bearer token.'});
-    return false;
+    return null;
   }
 
-  if (!checkRateLimit(configuredKey)) {
+  if (!checkRateLimit(publisher)) {
     res.setHeader('Retry-After', '1');
     res.status(429).json({error: 'Rate limit exceeded. Slow down sync requests.'});
-    return false;
+    return null;
   }
 
-  return true;
+  return publisher;
 }
 
 function isValidIso8601(value: unknown): value is string {
@@ -387,7 +405,8 @@ function mergeEvents(existing: CrossingEvent[], incoming: CrossingEvent[], reset
 
 function handleParkLabsSync(req: Request, res: Response, routeLotId?: string) {
   res.setHeader('Cache-Control', 'no-store');
-  if (!verifyIngestAuthAndRateLimit(req, res)) return;
+  const publisher = verifyIngestAuthAndRateLimit(req, res);
+  if (!publisher) return;
 
   const body = req.body as Record<string, unknown> | undefined;
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -434,6 +453,13 @@ function handleParkLabsSync(req: Request, res: Response, routeLotId?: string) {
     return;
   }
   const source: 'pc' | 'pi' = sourceRaw;
+
+  if (publisher !== 'shared' && publisher !== source) {
+    res.status(403).json({
+      error: `Bearer token is not authorized to publish as source "${source}".`,
+    });
+    return;
+  }
 
   const modeRaw = body.mode === undefined ? 'edge' : body.mode;
   if (modeRaw !== 'edge' && modeRaw !== 'server') {

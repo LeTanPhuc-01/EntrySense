@@ -21,6 +21,8 @@ export interface D1Database {
 
 export interface PagesEnv {
   PARKLABS_DB?: D1Database;
+  INGEST_KEY_PC?: string;
+  INGEST_KEY_PI?: string;
   ENTRYSENSE_INGEST_KEY?: string;
   ENTRYSENSE_LOT_NAME?: string;
   ENTRYSENSE_LOT_CAPACITY?: string;
@@ -277,6 +279,57 @@ function constantTimeEquals(a: string, b: string): boolean {
     diff |= aBytes[i] ^ bBytes[i];
   }
   return diff === 0;
+}
+
+type AuthenticatedPublisher = 'pc' | 'pi' | 'shared';
+
+function resolvePublisherAuth(
+  provided: string,
+  env: PagesEnv
+): {ok: true; publisher: AuthenticatedPublisher} | {ok: false; status: 401 | 503; error: string} {
+  const pcKey = (env.INGEST_KEY_PC || '').trim();
+  const piKey = (env.INGEST_KEY_PI || '').trim();
+  const legacyKey = (env.ENTRYSENSE_INGEST_KEY || '').trim();
+
+  const hasPerPublisherKeys = pcKey.length > 0 || piKey.length > 0;
+  if (!hasPerPublisherKeys && legacyKey.length === 0) {
+    return {
+      ok: false,
+      status: 503,
+      error: 'Ingest keys are not configured on the server.',
+    };
+  }
+
+  if (!provided) {
+    return {
+      ok: false,
+      status: 401,
+      error: 'Missing or invalid bearer token.',
+    };
+  }
+
+  if (hasPerPublisherKeys) {
+    const matchesPc = pcKey.length > 0 && constantTimeEquals(pcKey, provided);
+    const matchesPi = piKey.length > 0 && constantTimeEquals(piKey, provided);
+    if (matchesPc && !matchesPi) return {ok: true, publisher: 'pc'};
+    if (matchesPi && !matchesPc) return {ok: true, publisher: 'pi'};
+    if (matchesPc && matchesPi) return {ok: true, publisher: 'shared'};
+    return {
+      ok: false,
+      status: 401,
+      error: 'Missing or invalid bearer token.',
+    };
+  }
+
+  if (constantTimeEquals(legacyKey, provided)) {
+    return {ok: true, publisher: 'shared'};
+  }
+
+  return {
+    ok: false,
+    status: 401,
+    error: 'Missing or invalid bearer token.',
+  };
 }
 
 function checkRateLimit(keyId: string): boolean {
@@ -537,16 +590,7 @@ export async function processParkLabsSync(
   env: PagesEnv,
   routeLotId?: string
 ): Promise<Response> {
-  // 1. Auth (constant-time Bearer comparison; fail closed if secret unset)
-  const configuredKey = (env.ENTRYSENSE_INGEST_KEY || '').trim();
-  if (!configuredKey) {
-    return jsonResponse(
-      {error: 'Ingest key is not configured on the server.'},
-      503,
-      {'Cache-Control': 'no-store'}
-    );
-  }
-
+  // 1. Auth (constant-time per-publisher Bearer verification; fail closed if unset)
   const authHeader = request.headers.get('authorization') || '';
   const bearerToken = authHeader.toLowerCase().startsWith('bearer ')
     ? authHeader.slice(7).trim()
@@ -554,16 +598,13 @@ export async function processParkLabsSync(
   const apiKeyHeader = (request.headers.get('x-api-key') || '').trim();
   const provided = bearerToken || apiKeyHeader;
 
-  if (!provided || !constantTimeEquals(configuredKey, provided)) {
-    return jsonResponse(
-      {error: 'Missing or invalid bearer token.'},
-      401,
-      {'Cache-Control': 'no-store'}
-    );
+  const auth = resolvePublisherAuth(provided, env);
+  if (!auth.ok) {
+    return jsonResponse({error: auth.error}, auth.status, {'Cache-Control': 'no-store'});
   }
 
-  // 2. Per-key rate limit (~1 req/sec with burst of 5)
-  if (!checkRateLimit(configuredKey)) {
+  // 2. Per-publisher rate limit (~1 req/sec with burst of 5) so one key cannot starve another
+  if (!checkRateLimit(auth.publisher)) {
     return jsonResponse(
       {error: 'Rate limit exceeded. Slow down sync requests.'},
       429,
@@ -682,6 +723,15 @@ export async function processParkLabsSync(
     );
   }
   const source: 'pc' | 'pi' = sourceRaw;
+
+  // Enforce publisher-to-source binding (INGEST_KEY_PC -> "pc" only, INGEST_KEY_PI -> "pi" only)
+  if (auth.publisher !== 'shared' && auth.publisher !== source) {
+    return jsonResponse(
+      {error: `Bearer token is not authorized to publish as source "${source}".`},
+      403,
+      {'Cache-Control': 'no-store'}
+    );
+  }
 
   const modeRaw = body.mode === undefined ? 'edge' : body.mode;
   if (modeRaw !== 'edge' && modeRaw !== 'server') {
