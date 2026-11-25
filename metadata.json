@@ -1,0 +1,8 @@
+{
+  "name": "Remix EntrySense",
+  "description": "Real-time parking lot occupancy PWA translating live vehicle ingress and egress signals into a calm, glanceable mobile view.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
