@@ -1,0 +1,18 @@
+# Set `name` to match your Cloudflare Worker name if different.
+name = "entrysense"
+main = "worker.ts"
+compatibility_date = "2025-01-01"
+keep_vars = true
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+# Optional: uncomment and paste your D1 Database ID (from Cloudflare -> D1 -> parklabs-db)
+# so D1 stays bound automatically on every Git push:
+# [[d1_databases]]
+# binding = "PARKLABS_DB"
+# database_name = "parklabs-db"
+# database_id = "YOUR_D1_DATABASE_ID"
