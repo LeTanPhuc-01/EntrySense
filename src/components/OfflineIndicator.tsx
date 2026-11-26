@@ -12,15 +12,15 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({isOnline}) =>
     <div
       role="status"
       aria-live="polite"
-      className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-slate-100/90 px-4 py-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100"
+      className="apple-surface flex items-center gap-3 rounded-[20px] px-4 py-3 text-[13px] text-[var(--ink-primary)]"
     >
-      <WifiOff className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+      <WifiOff className="h-4 w-4 shrink-0 text-[var(--status-warn)]" strokeWidth={2} aria-hidden="true" />
       <p className="leading-snug">
         <span className="font-semibold">Offline mode</span>
-        <span className="mx-1.5 text-slate-400 dark:text-slate-500" aria-hidden="true">
+        <span className="mx-1.5 text-[var(--ink-tertiary)]" aria-hidden="true">
           ·
         </span>
-        <span className="text-slate-600 dark:text-slate-300">
+        <span className="text-[var(--ink-secondary)]">
           Showing last cached occupancy count. Live sync resumes automatically.
         </span>
       </p>

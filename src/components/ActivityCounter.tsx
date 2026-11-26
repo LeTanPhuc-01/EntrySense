@@ -1,4 +1,5 @@
 import React from 'react';
+import {motion} from 'motion/react';
 import {ArrowDownLeft, ArrowUpRight} from 'lucide-react';
 import type {SignalPulse} from '../hooks/useEntrySenseStream';
 import type {CrossingEvent, LotOccupancySnapshot} from '../types/entrysense';
@@ -37,127 +38,128 @@ export const ActivityCounter: React.FC<ActivityCounterProps> = ({snapshot, lastP
   return (
     <section
       aria-label="Live entered and left activity"
-      className="rounded-3xl border border-slate-200/90 bg-white dark:border-slate-800 dark:bg-[#131A26]"
+      className="apple-surface overflow-hidden rounded-[28px]"
     >
       {/* Quantitative Entered / Left Split */}
-      <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-slate-800/80">
+      <div className="grid grid-cols-2 divide-x divide-[var(--hairline)]">
         <div
-          className={`p-5 transition-colors duration-200 rounded-tl-3xl ${
-            ingressActive ? 'bg-teal-50/70 dark:bg-teal-950/30' : ''
+          className={`p-5 sm:p-6 transition-colors duration-300 ${
+            ingressActive ? 'bg-[var(--status-good-soft)]' : ''
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Entered
-            </span>
+            <span className="text-[12px] font-medium text-[var(--ink-secondary)]">Entered</span>
             <ArrowDownLeft
-              className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400"
+              className="h-3.5 w-3.5 shrink-0 text-[var(--status-good)]"
+              strokeWidth={2}
               aria-hidden="true"
             />
           </div>
           <p
-            className="mt-2 font-mono text-3xl font-bold tracking-tight text-slate-900 tabular-nums dark:text-slate-50"
+            className="mt-2 font-[var(--font-display)] text-[32px] font-semibold leading-none tracking-[-0.03em] text-[var(--ink-primary)] tabular-nums"
             data-testid="ingress-total"
           >
             {snapshot.entered}
           </p>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Vehicles in</p>
+          <p className="mt-1.5 text-[12px] text-[var(--ink-tertiary)]">Vehicles in</p>
         </div>
 
         <div
-          className={`p-5 transition-colors duration-200 rounded-tr-3xl ${
-            egressActive ? 'bg-sky-50/70 dark:bg-sky-950/30' : ''
+          className={`p-5 sm:p-6 transition-colors duration-300 ${
+            egressActive ? 'bg-[var(--accent-soft)]' : ''
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Left</span>
+            <span className="text-[12px] font-medium text-[var(--ink-secondary)]">Left</span>
             <ArrowUpRight
-              className="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400"
+              className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]"
+              strokeWidth={2}
               aria-hidden="true"
             />
           </div>
           <p
-            className="mt-2 font-mono text-3xl font-bold tracking-tight text-slate-900 tabular-nums dark:text-slate-50"
+            className="mt-2 font-[var(--font-display)] text-[32px] font-semibold leading-none tracking-[-0.03em] text-[var(--ink-primary)] tabular-nums"
             data-testid="egress-total"
           >
             {snapshot.left}
           </p>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Vehicles out</p>
+          <p className="mt-1.5 text-[12px] text-[var(--ink-tertiary)]">Vehicles out</p>
         </div>
       </div>
 
-      {/* Unboxed Net Flow Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-3 text-xs text-slate-500 dark:border-slate-800/80 dark:text-slate-400">
+      {/* Quiet Net Flow Strip */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--hairline)] px-5 py-3 text-[12px] text-[var(--ink-secondary)] sm:px-6">
         <span>
-          Net flow:{' '}
-          <strong className="font-mono font-semibold text-slate-800 tabular-nums dark:text-slate-200">
+          Net flow{' '}
+          <strong className="font-semibold text-[var(--ink-primary)] tabular-nums">
             {netLabel}
           </strong>
         </span>
-        <span className="truncate font-mono text-[11px] text-slate-500 dark:text-slate-400">
+        <span className="truncate text-[12px] text-[var(--ink-tertiary)] tabular-nums">
           {snapshot.since ? `Since ${formatEventTime(snapshot.since)}` : 'Live counter'}
         </span>
       </div>
 
-      {/* Recent Crossings Feed (Last 10) */}
-      <div className="border-t border-slate-100 px-5 py-4 dark:border-slate-800/80">
+      {/* Recent Crossings Inset List (No rounded-square icon tiles) */}
+      <div className="border-t border-[var(--hairline)] px-5 py-4 sm:px-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <h2 className="font-[var(--font-display)] text-[15px] font-semibold tracking-[-0.015em] text-[var(--ink-primary)]">
             Recent crossings
           </h2>
-          <span className="text-xs text-slate-500 dark:text-slate-400">
+          <span className="text-[12px] text-[var(--ink-tertiary)] tabular-nums">
             Latest {visibleEvents.length}
           </span>
         </div>
 
         {visibleEvents.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+          <p className="py-6 text-center text-[13px] text-[var(--ink-secondary)]">
             No vehicle crossings recorded yet.
           </p>
         ) : (
-          <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800/70">
+          <ul className="mt-2.5 divide-y divide-[var(--hairline)]">
             {visibleEvents.map((event) => {
               const {label, signedDelta} = describeEvent(event);
               const isIn = event.direction === 'in';
               return (
-                <li
+                <motion.li
                   key={event.id}
-                  className="flex items-center justify-between gap-3 py-3 first:pt-1 last:pb-1"
+                  initial={{opacity: 0, y: -5}}
+                  animate={{opacity: 1, y: 0}}
+                  transition={{duration: 0.2, ease: [0.22, 1, 0.36, 1]}}
+                  className="flex items-center justify-between gap-3 py-3 first:pt-1.5 last:pb-1"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
-                        isIn
-                          ? 'bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300'
-                          : 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300'
-                      }`}
-                    >
-                      {isIn ? (
-                        <ArrowDownLeft className="h-4 w-4" aria-hidden="true" />
-                      ) : (
-                        <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                      )}
-                    </span>
+                  <div className="flex min-w-0 items-center gap-3">
+                    {isIn ? (
+                      <ArrowDownLeft
+                        className="h-4 w-4 shrink-0 text-[var(--status-good)]"
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <ArrowUpRight
+                        className="h-4 w-4 shrink-0 text-[var(--accent)]"
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      />
+                    )}
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                      <p className="truncate text-[14px] font-medium text-[var(--ink-primary)]">
                         {label}
                       </p>
-                      <p className="truncate font-mono text-xs text-slate-500 tabular-nums dark:text-slate-400">
+                      <p className="truncate text-[12px] text-[var(--ink-tertiary)] tabular-nums">
                         {formatEventTime(event.timestamp)}
                       </p>
                     </div>
                   </div>
 
                   <span
-                    className={`font-mono text-sm font-semibold tabular-nums shrink-0 ${
-                      isIn
-                        ? 'text-teal-700 dark:text-teal-300'
-                        : 'text-sky-700 dark:text-sky-300'
+                    className={`shrink-0 text-[14px] font-semibold tabular-nums ${
+                      isIn ? 'text-[var(--status-good)]' : 'text-[var(--accent)]'
                     }`}
                   >
                     {signedDelta}
                   </span>
-                </li>
+                </motion.li>
               );
             })}
           </ul>

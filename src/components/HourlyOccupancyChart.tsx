@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import type {LotOccupancySnapshot} from '../types/entrysense';
 
 interface HourlyOccupancyChartProps {
@@ -36,6 +36,8 @@ function formatTimezoneShort(nowMs: number, timeZone: string): string {
 export const HourlyOccupancyChart: React.FC<HourlyOccupancyChartProps> = ({snapshot}) => {
   const {hourlyStats, capacity, occupied, hasLiveSync, updatedAt, timezone} = snapshot;
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const chartGridRef = useRef<HTMLDivElement | null>(null);
+  const isScrubbingRef = useRef(false);
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
@@ -70,6 +72,22 @@ export const HourlyOccupancyChart: React.FC<HourlyOccupancyChartProps> = ({snaps
   }, [hourlyStats, currentHour]);
 
   const [selectedHour, setSelectedHour] = useState<number>(defaultSelectedHour);
+
+  const selectHourFromClientX = useCallback(
+    (clientX: number) => {
+      const container = chartGridRef.current;
+      if (!container || hourlyStats.length === 0) return;
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const ratio = Math.max(0, Math.min(0.9999, (clientX - rect.left) / rect.width));
+      const idx = Math.floor(ratio * hourlyStats.length);
+      const target = hourlyStats[idx];
+      if (target) {
+        setSelectedHour(target.hour);
+      }
+    },
+    [hourlyStats]
+  );
 
   const selectedBucket = useMemo(() => {
     return (
@@ -158,61 +176,63 @@ export const HourlyOccupancyChart: React.FC<HourlyOccupancyChartProps> = ({snaps
   return (
     <section
       aria-label="Popular times and live occupancy"
-      className="rounded-3xl border border-slate-200/90 bg-white p-6 dark:border-slate-800 dark:bg-[#131A26]"
+      className="apple-surface rounded-[28px] p-6 sm:p-7"
     >
       {/* Header & Selected Hour Readout */}
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+          <h2 className="font-[var(--font-display)] text-[18px] font-semibold tracking-[-0.02em] text-[var(--ink-primary)]">
             Popular times
           </h2>
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+          <p className="mt-0.5 text-[12px] text-[var(--ink-secondary)]">
             Historical typical &amp; today · Chicago ({tzShort})
           </p>
         </div>
 
         <div className="text-right">
-          <p className="font-mono text-sm font-semibold text-slate-900 tabular-nums dark:text-slate-100">
+          <p className="text-[14px] font-semibold tracking-[-0.01em] text-[var(--ink-primary)] tabular-nums">
             {selectedBucket.label}
             {isSelectedCurrent ? ' · Now' : ''}
           </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-[12px] text-[var(--ink-secondary)] tabular-nums">
             {isSelectedCurrent && isFreshLive ? (
               <>
-                <span className="font-mono font-semibold text-rose-600 tabular-nums dark:text-rose-400">
+                <span
+                  className="font-semibold"
+                  style={{color: 'var(--chart-live-cap)'}}
+                >
                   Live {liveOccupancyPct}%
                 </span>
                 {selectedBucket.sampleCount > 0 && (
                   <>
-                    <span className="mx-1.5" aria-hidden="true">
+                    <span className="mx-1.5 text-[var(--ink-tertiary)]" aria-hidden="true">
                       ·
                     </span>
-                    <span className="font-mono tabular-nums">
-                      Typical {selectedBucket.typicalPct}%
-                    </span>
+                    <span>Typical {selectedBucket.typicalPct}%</span>
                   </>
                 )}
               </>
             ) : selectedBucket.todayPct !== null ? (
               <>
-                <span className="font-mono font-medium text-teal-700 tabular-nums dark:text-teal-400">
+                <span
+                  className="font-medium"
+                  style={{color: 'var(--chart-today-cap)'}}
+                >
                   Today {selectedBucket.todayPct}%
                 </span>
                 {selectedBucket.sampleCount > 0 && (
                   <>
-                    <span className="mx-1.5" aria-hidden="true">
+                    <span className="mx-1.5 text-[var(--ink-tertiary)]" aria-hidden="true">
                       ·
                     </span>
-                    <span className="font-mono tabular-nums">
-                      Typical {selectedBucket.typicalPct}%
-                    </span>
+                    <span>Typical {selectedBucket.typicalPct}%</span>
                   </>
                 )}
               </>
             ) : selectedBucket.sampleCount > 0 ? (
               <>
                 Typical{' '}
-                <span className="font-mono font-medium text-slate-800 tabular-nums dark:text-slate-200">
+                <span className="font-medium text-[var(--ink-primary)]">
                   {selectedBucket.typicalPct}%
                 </span>{' '}
                 full
@@ -224,42 +244,83 @@ export const HourlyOccupancyChart: React.FC<HourlyOccupancyChartProps> = ({snaps
         </div>
       </div>
 
-      {/* Google-style LIVE comparison bar */}
+      {/* Live Comparison Strip */}
       {liveComparison && (
-        <div className="mt-4 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-slate-100 pt-3.5 text-xs dark:border-slate-800/80">
-          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold tracking-wider text-rose-600 uppercase dark:text-rose-400">
+        <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-[var(--hairline)] pt-3.5 text-[12px]">
+          <span
+            className="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-[0.06em] uppercase"
+            style={{color: 'var(--chart-live-cap)'}}
+          >
             <span className="relative flex h-2 w-2" aria-hidden="true">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500 dark:bg-rose-400" />
+              <span
+                className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-70"
+                style={{backgroundColor: 'var(--chart-live-cap)'}}
+              />
+              <span
+                className="relative inline-flex h-2 w-2 rounded-full"
+                style={{backgroundColor: 'var(--chart-live-cap)'}}
+              />
             </span>
             Live
           </span>
-          <span className="font-semibold text-slate-900 dark:text-slate-100">
+          <span className="font-semibold text-[var(--ink-primary)]">
             {liveComparison.headline}
           </span>
-          <span className="text-slate-500 dark:text-slate-400">· {liveComparison.detail}</span>
+          <span className="text-[var(--ink-secondary)] tabular-nums">
+            · {liveComparison.detail}
+          </span>
         </div>
       )}
 
-      {/* Interactive Google-Style Layered Bar Chart */}
+      {/* Interactive Scrubbing Layered Bar Chart */}
       <div className="mt-5">
         <div
-          className="relative grid h-44 items-end gap-1 sm:gap-1.5"
+          ref={chartGridRef}
+          onPointerDown={(e) => {
+            isScrubbingRef.current = true;
+            selectHourFromClientX(e.clientX);
+          }}
+          onPointerMove={(e) => {
+            if (!isScrubbingRef.current) return;
+            if (e.pointerType === 'mouse' && e.buttons !== 1) {
+              isScrubbingRef.current = false;
+              return;
+            }
+            selectHourFromClientX(e.clientX);
+          }}
+          onPointerUp={() => {
+            isScrubbingRef.current = false;
+          }}
+          onPointerCancel={() => {
+            isScrubbingRef.current = false;
+          }}
+          onPointerLeave={() => {
+            isScrubbingRef.current = false;
+          }}
+          className="relative grid h-44 touch-pan-y select-none items-end gap-1 sm:gap-1.5"
           style={{gridTemplateColumns: `repeat(${Math.max(1, hourlyStats.length)}, minmax(0, 1fr))`}}
           role="group"
           aria-label="Hourly typical and live parking occupancy from 6 AM to 11 PM Chicago time"
         >
-          {/* Subtle 50% and 80% reference hairlines */}
+          {/* 100% and 50% reference hairlines */}
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-[80%] border-t border-dashed border-slate-200 dark:border-slate-800"
+            className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-end border-t border-dashed border-[var(--hairline)]"
             aria-hidden="true"
-          />
+          >
+            <span className="mt-0.5 text-[10px] font-medium text-[var(--ink-tertiary)] tabular-nums">
+              100%
+            </span>
+          </div>
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-[50%] border-t border-slate-100 dark:border-slate-800/70"
+            className="pointer-events-none absolute inset-x-0 bottom-[50%] flex items-end justify-end border-t border-[var(--hairline)]"
             aria-hidden="true"
-          />
+          >
+            <span className="mb-0.5 text-[10px] font-medium text-[var(--ink-tertiary)] tabular-nums">
+              50%
+            </span>
+          </div>
 
-          {hourlyStats.map((bucket) => {
+          {hourlyStats.map((bucket, idx) => {
             const isCurrent = bucket.hour === currentHour;
             const isSelected = bucket.hour === selectedBucket.hour;
 
@@ -277,6 +338,15 @@ export const HourlyOccupancyChart: React.FC<HourlyOccupancyChartProps> = ({snaps
                 key={bucket.hour}
                 type="button"
                 onClick={() => setSelectedHour(bucket.hour)}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowRight' && idx < hourlyStats.length - 1) {
+                    e.preventDefault();
+                    setSelectedHour(hourlyStats[idx + 1].hour);
+                  } else if (e.key === 'ArrowLeft' && idx > 0) {
+                    e.preventDefault();
+                    setSelectedHour(hourlyStats[idx - 1].hour);
+                  }
+                }}
                 aria-pressed={isSelected}
                 aria-label={`${bucket.label}: ${
                   hasTypical ? `typical ${bucket.typicalPct}% full` : 'no historical average yet'
@@ -287,35 +357,44 @@ export const HourlyOccupancyChart: React.FC<HourlyOccupancyChartProps> = ({snaps
                       ? `, today ${bucket.todayPct}% full`
                       : ''
                 }`}
-                className={`group relative flex h-full w-full items-end justify-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
-                  isSelected ? 'bg-slate-100/70 dark:bg-slate-800/40' : ''
+                className={`group relative flex h-full w-full items-end justify-center rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+                  isSelected ? 'bg-[var(--surface-recessed)]/75' : ''
                 }`}
               >
-                {/* Layer 1: Historical Typical Bar (Google Maps soft sky-blue) */}
+                {/* Layer 1: Historical Typical Bar */}
                 <span
-                  className={`w-full rounded-t-md transition-[height,background-color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                    hasTypical
+                  className="w-full rounded-t-[5px] transition-[height,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                  style={{
+                    height: `${typicalHeight}%`,
+                    backgroundColor: hasTypical
                       ? isSelected
-                        ? 'bg-sky-300 dark:bg-sky-400/50'
-                        : 'bg-sky-200 group-hover:bg-sky-300/90 dark:bg-sky-500/30 dark:group-hover:bg-sky-400/45'
-                      : 'bg-slate-100 dark:bg-slate-800/80'
-                  }`}
-                  style={{height: `${typicalHeight}%`}}
+                        ? 'var(--chart-typical-active)'
+                        : 'var(--chart-typical)'
+                      : 'var(--surface-recessed)',
+                  }}
                 />
 
                 {/* Layer 2: Earlier Today Observed Overlay */}
                 {hasTodayPast && (
                   <span
-                    className="pointer-events-none absolute inset-x-0 bottom-0 rounded-t-md border-t-2 border-teal-600 bg-teal-500/25 transition-[height] duration-200 dark:border-teal-400 dark:bg-teal-400/20"
-                    style={{height: `${todayHeight}%`}}
+                    className="pointer-events-none absolute inset-x-0 bottom-0 rounded-t-[5px] border-t-2 transition-[height] duration-200"
+                    style={{
+                      height: `${todayHeight}%`,
+                      backgroundColor: 'var(--chart-today-fill)',
+                      borderColor: 'var(--chart-today-cap)',
+                    }}
                   />
                 )}
 
-                {/* Layer 3: Google-style Translucent LIVE Overlay on Current Chicago Hour */}
+                {/* Layer 3: Translucent LIVE Overlay on Current Chicago Hour */}
                 {showLiveOverlay && (
                   <span
-                    className="pointer-events-none absolute inset-x-0 bottom-0 rounded-t-md border-t-[3px] border-rose-600 bg-rose-500/60 transition-[height] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] dark:border-rose-300 dark:bg-rose-500/65"
-                    style={{height: `${liveHeight}%`}}
+                    className="pointer-events-none absolute inset-x-0 bottom-0 rounded-t-[5px] border-t-[2.5px] transition-[height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                    style={{
+                      height: `${liveHeight}%`,
+                      backgroundColor: 'var(--chart-live-fill)',
+                      borderColor: 'var(--chart-live-cap)',
+                    }}
                   />
                 )}
               </button>
@@ -325,18 +404,19 @@ export const HourlyOccupancyChart: React.FC<HourlyOccupancyChartProps> = ({snaps
 
         {/* Clean Axis Tick Labels */}
         <div
-          className="mt-2 grid gap-1 text-center font-mono text-[10px] text-slate-400 tabular-nums dark:text-slate-500 sm:gap-1.5"
+          className="mt-2 grid gap-1 text-center text-[11px] font-medium text-[var(--ink-tertiary)] tabular-nums sm:gap-1.5"
           style={{gridTemplateColumns: `repeat(${Math.max(1, hourlyStats.length)}, minmax(0, 1fr))`}}
           aria-hidden="true"
         >
           {hourlyStats.map((bucket, idx) => (
             <span
               key={bucket.hour}
+              style={bucket.hour === currentHour ? {color: 'var(--chart-live-cap)'} : undefined}
               className={
                 bucket.hour === currentHour
-                  ? 'font-bold text-rose-600 dark:text-rose-400'
+                  ? 'font-semibold'
                   : bucket.hour === selectedBucket.hour
-                    ? 'font-semibold text-slate-900 dark:text-slate-100'
+                    ? 'font-semibold text-[var(--ink-primary)]'
                     : idx % 3 === 0
                       ? ''
                       : 'invisible sm:visible'
@@ -349,43 +429,52 @@ export const HourlyOccupancyChart: React.FC<HourlyOccupancyChartProps> = ({snaps
           ))}
         </div>
 
-        {/* Unboxed Legend */}
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+        {/* Minimal Legend */}
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[var(--ink-secondary)]">
           <span className="inline-flex items-center gap-1.5">
             <span
-              className="h-2.5 w-2.5 rounded-xs bg-sky-200 dark:bg-sky-500/40"
+              className="h-2.5 w-2.5 rounded-full"
+              style={{backgroundColor: 'var(--chart-typical)'}}
               aria-hidden="true"
             />
             Typical
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span
-              className="h-2.5 w-2.5 rounded-xs border-t-2 border-teal-600 bg-teal-500/30 dark:border-teal-400"
+              className="h-2.5 w-2.5 rounded-full border-t-2"
+              style={{
+                backgroundColor: 'var(--chart-today-fill)',
+                borderColor: 'var(--chart-today-cap)',
+              }}
               aria-hidden="true"
             />
             Today
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span
-              className="h-2.5 w-2.5 rounded-xs border-t-2 border-rose-600 bg-rose-500/65 dark:border-rose-300"
+              className="h-2.5 w-2.5 rounded-full border-t-2"
+              style={{
+                backgroundColor: 'var(--chart-live-fill)',
+                borderColor: 'var(--chart-live-cap)',
+              }}
               aria-hidden="true"
             />
             Live now
           </span>
-          <span className="ml-auto font-mono text-[11px] tabular-nums text-slate-500 dark:text-slate-400">
+          <span className="ml-auto text-[12px] font-medium text-[var(--ink-secondary)] tabular-nums">
             In {selectedBucket.ingressCount} · Out {selectedBucket.egressCount}
           </span>
         </div>
       </div>
 
       {/* Peak & Quiet Summary Strip */}
-      <div className="mt-5 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 dark:border-slate-800/80">
+      <div className="mt-5 grid grid-cols-2 gap-4 border-t border-[var(--hairline)] pt-4">
         <div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Typical peak window</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <p className="text-[12px] text-[var(--ink-secondary)]">Typical peak window</p>
+          <p className="mt-1 text-[14px] font-semibold tracking-[-0.01em] text-[var(--ink-primary)]">
             {insights.peakWindow}
           </p>
-          <p className="mt-0.5 font-mono text-xs text-slate-500 tabular-nums dark:text-slate-400">
+          <p className="mt-0.5 text-[12px] text-[var(--ink-secondary)] tabular-nums">
             {insights.hasHistory
               ? `Up to ${insights.peakPct}% typical`
               : 'Updates every 10 min'}
@@ -393,11 +482,11 @@ export const HourlyOccupancyChart: React.FC<HourlyOccupancyChartProps> = ({snaps
         </div>
 
         <div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Quietest hour</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <p className="text-[12px] text-[var(--ink-secondary)]">Quietest hour</p>
+          <p className="mt-1 text-[14px] font-semibold tracking-[-0.01em] text-[var(--ink-primary)] tabular-nums">
             {insights.quietWindow}
           </p>
-          <p className="mt-0.5 text-xs text-emerald-700 dark:text-emerald-400">
+          <p className="mt-0.5 text-[12px] font-medium text-[var(--status-good)]">
             {insights.hasHistory ? 'Easiest availability' : 'Persists across resets'}
           </p>
         </div>

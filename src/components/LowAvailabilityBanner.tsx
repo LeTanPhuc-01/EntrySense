@@ -19,40 +19,40 @@ export const LowAvailabilityBanner: React.FC<LowAvailabilityBannerProps> = ({
   return (
     <div
       role="alert"
-      className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 transition-colors ${
+      className={`flex items-center justify-between gap-3 rounded-[20px] px-4 py-3.5 transition-colors ${
         isFull
-          ? 'border-red-200 bg-red-50/90 text-red-950 dark:border-red-500/30 dark:bg-red-950/35 dark:text-red-100'
-          : 'border-amber-200 bg-amber-50/90 text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/35 dark:text-amber-100'
+          ? 'bg-[var(--status-danger-soft)] text-[var(--ink-primary)]'
+          : 'bg-[var(--status-warn-soft)] text-[var(--ink-primary)]'
       }`}
     >
-      <div className="flex items-start gap-3 min-w-0">
+      <div className="flex min-w-0 items-start gap-3">
         <AlertTriangle
           className={`mt-0.5 h-5 w-5 shrink-0 ${
-            isFull ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
+            isFull ? 'text-[var(--status-danger)]' : 'text-[var(--status-warn)]'
           }`}
+          strokeWidth={2}
           aria-hidden="true"
         />
         <div className="min-w-0">
-          <p className="text-sm font-semibold leading-snug">
-            {isFull ? 'Parking lot is currently full' : 'Low parking availability'}
-          </p>
           <p
-            className={`mt-0.5 text-xs leading-relaxed ${
-              isFull ? 'text-red-800/90 dark:text-red-200/80' : 'text-amber-800/90 dark:text-amber-200/80'
+            className={`text-[14px] font-semibold leading-snug ${
+              isFull ? 'text-[var(--status-danger)]' : 'text-[var(--status-warn)]'
             }`}
           >
+            {isFull ? 'Parking lot is currently full' : 'Low parking availability'}
+          </p>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--ink-secondary)] tabular-nums">
             {isFull ? (
               <>
-                <span className="font-mono tabular-nums font-semibold">0</span> open spaces
+                <span className="font-semibold text-[var(--ink-primary)]">0</span> open spaces
                 remaining. Alert threshold is{' '}
-                <span className="font-mono tabular-nums font-semibold">{threshold}</span>.
+                <span className="font-semibold text-[var(--ink-primary)]">{threshold}</span>.
               </>
             ) : (
               <>
-                Only{' '}
-                <span className="font-mono tabular-nums font-semibold">{available}</span>{' '}
+                Only <span className="font-semibold text-[var(--ink-primary)]">{available}</span>{' '}
                 {available === 1 ? 'space' : 'spaces'} open — at or below your{' '}
-                <span className="font-mono tabular-nums font-semibold">{threshold}</span>-space
+                <span className="font-semibold text-[var(--ink-primary)]">{threshold}</span>-space
                 alert.
               </>
             )}
@@ -63,13 +63,9 @@ export const LowAvailabilityBanner: React.FC<LowAvailabilityBannerProps> = ({
       <button
         type="button"
         onClick={onAdjustThreshold}
-        className={`inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 ${
-          isFull
-            ? 'text-red-800 hover:bg-red-100/80 focus-visible:outline-red-600 dark:text-red-200 dark:hover:bg-red-900/40'
-            : 'text-amber-900 hover:bg-amber-100/80 focus-visible:outline-amber-600 dark:text-amber-200 dark:hover:bg-amber-900/40'
-        }`}
+        className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full bg-[var(--surface-elevated)]/80 px-3.5 py-2 text-[12px] font-semibold text-[var(--ink-primary)] whitespace-nowrap shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-all hover:bg-[var(--surface-elevated)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
       >
-        <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+        <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
         <span>Adjust</span>
       </button>
     </div>

@@ -12,7 +12,7 @@ run_worker_first = ["/api/*"]
 
 # Optional: uncomment and paste your D1 Database ID (from Cloudflare -> D1 -> parklabs-db)
 # so D1 stays bound automatically on every Git push:
-# [[d1_databases]]
-# binding = "PARKLABS_DB"
-# database_name = "parklabs-db"
-# database_id = "YOUR_D1_DATABASE_ID"
+[[d1_databases]]
+binding = "PARKLABS_DB"
+database_name = "parklabs-db"
+database_id = "af6b8ba8-41f1-43f0-84df-bd18928bd14f"

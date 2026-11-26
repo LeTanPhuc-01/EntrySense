@@ -47,7 +47,7 @@ export function useTheme() {
 
     const themeMeta = document.querySelector('meta[name="theme-color"]');
     if (themeMeta) {
-      themeMeta.setAttribute('content', resolvedTheme === 'dark' ? '#0B0F17' : '#F8FAFC');
+      themeMeta.setAttribute('content', resolvedTheme === 'dark' ? '#09090B' : '#F5F5F7');
     }
   }, [resolvedTheme]);
 

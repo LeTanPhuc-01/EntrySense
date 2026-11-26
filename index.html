@@ -15,19 +15,13 @@
     />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#F8FAFC" />
+    <meta name="theme-color" content="#F5F5F7" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="EntrySense" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" href="/icon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
     <script>
       (function () {
         try {
@@ -37,13 +31,13 @@
           if (isDark) {
             document.documentElement.classList.add('dark');
             var meta = document.querySelector('meta[name="theme-color"]');
-            if (meta) meta.setAttribute('content', '#0B0F17');
+            if (meta) meta.setAttribute('content', '#09090B');
           }
         } catch (e) {}
       })();
     </script>
   </head>
-  <body class="bg-[#F8FAFC] text-slate-900 antialiased dark:bg-[#0B0F17] dark:text-slate-50">
+  <body class="bg-[var(--surface-canvas)] text-[var(--ink-primary)] antialiased selection:bg-[var(--accent-soft)]">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from 'react';
+import {motion} from 'motion/react';
 import {AlertTriangle, RefreshCw} from 'lucide-react';
 import type {ConnectionState, LotOccupancySnapshot} from '../types/entrysense';
 
@@ -65,32 +66,32 @@ export const OccupancyGauge: React.FC<OccupancyGaugeProps> = ({
           ? 'Low Availability'
           : 'Spaces Free';
 
-  const strokeColorClass = !snapshot.hasLiveSync || isCounterOffline
-    ? 'stroke-slate-300 dark:stroke-slate-700'
+  const statusTone = !snapshot.hasLiveSync || isCounterOffline
+    ? {
+        stroke: 'var(--ink-tertiary)',
+        text: 'text-[var(--ink-secondary)]',
+        bar: 'var(--ink-tertiary)',
+      }
     : isFull
-      ? 'stroke-red-600 dark:stroke-red-400'
+      ? {
+          stroke: 'var(--status-danger-fill)',
+          text: 'text-[var(--status-danger)]',
+          bar: 'var(--status-danger-fill)',
+        }
       : isLow || isCountStale
-        ? 'stroke-amber-500 dark:stroke-amber-400'
-        : 'stroke-emerald-600 dark:stroke-emerald-400';
-
-  const statusTextClass = !snapshot.hasLiveSync || isCounterOffline
-    ? 'text-slate-500 dark:text-slate-400'
-    : isFull
-      ? 'text-red-700 dark:text-red-400'
-      : isLow || isCountStale
-        ? 'text-amber-700 dark:text-amber-400'
-        : 'text-emerald-700 dark:text-emerald-400';
-
-  const barColorClass = !snapshot.hasLiveSync || isCounterOffline
-    ? 'bg-slate-300 dark:bg-slate-700'
-    : isFull
-      ? 'bg-red-600 dark:bg-red-400'
-      : isLow
-        ? 'bg-amber-500 dark:bg-amber-400'
-        : 'bg-emerald-600 dark:bg-emerald-400';
+        ? {
+            stroke: 'var(--status-warn-fill)',
+            text: 'text-[var(--status-warn)]',
+            bar: 'var(--status-warn-fill)',
+          }
+        : {
+            stroke: 'var(--status-good-fill)',
+            text: 'text-[var(--status-good)]',
+            bar: 'var(--status-good-fill)',
+          };
 
   // SVG Ring geometry (240x240 viewBox)
-  const radius = 98;
+  const radius = 100;
   const circumference = 2 * Math.PI * radius;
   const freeRatio = snapshot.capacity > 0 ? freeSpaces / snapshot.capacity : 0;
   const dashOffset = circumference * (1 - Math.max(0, Math.min(1, freeRatio)));
@@ -100,25 +101,31 @@ export const OccupancyGauge: React.FC<OccupancyGaugeProps> = ({
       : 0;
 
   let freshnessLabel = 'Connecting';
-  let dotTone = 'bg-slate-400';
+  let pillStyle = 'bg-[var(--surface-recessed)] text-[var(--ink-secondary)]';
+  let dotStyle = 'bg-[var(--ink-tertiary)]';
+  let isLiveActive = false;
+
   if (connectionState === 'offline') {
     freshnessLabel = 'Cached';
-    dotTone = 'bg-slate-400';
   } else if (!snapshot.hasLiveSync) {
     freshnessLabel = connectionState === 'reconnecting' ? 'Reconnecting' : 'Connecting';
-    dotTone = 'bg-slate-400';
   } else if (isCounterOffline) {
     freshnessLabel = 'Counter offline';
-    dotTone = 'bg-red-500';
+    pillStyle = 'bg-[var(--status-danger-soft)] text-[var(--status-danger)]';
+    dotStyle = 'bg-[var(--status-danger-fill)]';
   } else if (isCountStale) {
     freshnessLabel = 'Stale';
-    dotTone = 'bg-amber-500';
+    pillStyle = 'bg-[var(--status-warn-soft)] text-[var(--status-warn)]';
+    dotStyle = 'bg-[var(--status-warn-fill)]';
   } else if (connectionState === 'reconnecting') {
     freshnessLabel = 'Reconnecting';
-    dotTone = 'bg-amber-500';
+    pillStyle = 'bg-[var(--status-warn-soft)] text-[var(--status-warn)]';
+    dotStyle = 'bg-[var(--status-warn-fill)]';
   } else {
     freshnessLabel = snapshot.source === 'pi' ? 'Live · from Pi' : 'Live';
-    dotTone = 'bg-emerald-500 dark:bg-emerald-400';
+    pillStyle = 'bg-[var(--status-good-soft)] text-[var(--status-good)]';
+    dotStyle = 'bg-[var(--status-good-fill)]';
+    isLiveActive = true;
   }
 
   const handleRefresh = () => {
@@ -130,21 +137,29 @@ export const OccupancyGauge: React.FC<OccupancyGaugeProps> = ({
   return (
     <section
       aria-label="Live parking occupancy"
-      className="rounded-3xl border border-slate-200/90 bg-white p-6 dark:border-slate-800 dark:bg-[#131A26]"
+      className="apple-surface rounded-[28px] p-6 sm:p-7"
     >
-      {/* Top Lot Heading + Source & Freshness */}
+      {/* Top Lot Heading + Status Pill & Freshness */}
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 text-balance dark:text-slate-50 sm:text-2xl">
+          <h1 className="font-[var(--font-display)] text-[22px] font-semibold tracking-[-0.03em] leading-tight text-[var(--ink-primary)] text-balance sm:text-[24px]">
             {snapshot.lotName}
           </h1>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
-            <span className="inline-flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
-              <span className={`h-1.5 w-1.5 rounded-full ${dotTone}`} aria-hidden="true" />
+          <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-[var(--ink-secondary)]">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-medium ${pillStyle}`}
+            >
+              <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
+                {isLiveActive && (
+                  <span
+                    className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${dotStyle}`}
+                  />
+                )}
+                <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${dotStyle}`} />
+              </span>
               <span>{freshnessLabel}</span>
             </span>
-            <span aria-hidden="true">·</span>
-            <span>{formatAgeLabel(ageSec)}</span>
+            <span className="tabular-nums">{formatAgeLabel(ageSec)}</span>
           </div>
         </div>
 
@@ -152,12 +167,13 @@ export const OccupancyGauge: React.FC<OccupancyGaugeProps> = ({
           type="button"
           onClick={handleRefresh}
           aria-label="Refresh occupancy snapshot"
-          className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+          className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-[var(--ink-secondary)] transition-all hover:bg-[var(--surface-recessed)] hover:text-[var(--ink-primary)] active:scale-92 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         >
           <RefreshCw
-            className={`h-4 w-4 transition-transform duration-300 ${
+            className={`h-4 w-4 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
               isRefreshing ? 'rotate-180' : ''
             }`}
+            strokeWidth={1.9}
             aria-hidden="true"
           />
         </button>
@@ -167,13 +183,13 @@ export const OccupancyGauge: React.FC<OccupancyGaugeProps> = ({
       {(isCountStale || isCounterOffline) && (
         <div
           role="status"
-          className={`mt-4 flex items-center gap-2 rounded-2xl border px-3.5 py-2.5 text-xs font-medium ${
+          className={`mt-4 flex items-center gap-2.5 rounded-2xl px-3.5 py-2.5 text-[13px] font-medium ${
             isCounterOffline
-              ? 'border-red-200/80 bg-red-50/70 text-red-800 dark:border-red-500/30 dark:bg-red-950/35 dark:text-red-200'
-              : 'border-amber-200/80 bg-amber-50/70 text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/35 dark:text-amber-200'
+              ? 'bg-[var(--status-danger-soft)] text-[var(--status-danger)]'
+              : 'bg-[var(--status-warn-soft)] text-[var(--status-warn)]'
           }`}
         >
-          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden="true" />
           <span>
             {isCounterOffline
               ? 'Counter offline — showing the last recorded count.'
@@ -182,78 +198,93 @@ export const OccupancyGauge: React.FC<OccupancyGaugeProps> = ({
         </div>
       )}
 
-      {/* Focal Anchor: Radial Availability Gauge */}
-      <div className="my-6 flex flex-col items-center justify-center">
-        <div className="relative flex h-56 w-56 items-center justify-center sm:h-60 sm:w-60">
+      {/* Focal Precision Availability Ring */}
+      <div className="my-7 flex flex-col items-center justify-center">
+        <div className="relative flex h-[236px] w-[236px] items-center justify-center sm:h-[248px] sm:w-[248px]">
           <svg
             viewBox="0 0 240 240"
             className="h-full w-full -rotate-90"
             role="img"
             aria-label={`${freeSpaces} of ${snapshot.capacity} spaces free, ${statusLabel}`}
           >
+            {/* Outer neutral track */}
             <circle
               cx="120"
               cy="120"
               r={radius}
               fill="none"
-              strokeWidth="14"
-              className="stroke-slate-100 dark:stroke-slate-800"
+              strokeWidth="11"
+              stroke="var(--surface-recessed)"
             />
+            {/* Inner precision dial ticks */}
             <circle
+              cx="120"
+              cy="120"
+              r={84}
+              fill="none"
+              strokeWidth="1.5"
+              strokeDasharray="1 11.2"
+              strokeLinecap="round"
+              stroke="var(--ink-tertiary)"
+              opacity="0.32"
+            />
+            {/* Spring-animated progress arc */}
+            <motion.circle
               cx="120"
               cy="120"
               r={radius}
               fill="none"
-              strokeWidth="14"
+              strokeWidth="11"
               strokeLinecap="round"
+              stroke={statusTone.stroke}
               strokeDasharray={circumference}
-              strokeDashoffset={dashOffset}
-              className={`${strokeColorClass} transition-[stroke-dashoffset,stroke] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]`}
+              initial={false}
+              animate={{strokeDashoffset: dashOffset}}
+              transition={{type: 'spring', stiffness: 120, damping: 24, mass: 0.9}}
             />
           </svg>
 
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
             <span
-              className="font-mono text-6xl font-bold leading-none tracking-tight text-slate-900 tabular-nums dark:text-slate-50"
+              className="font-[var(--font-display)] text-[68px] font-semibold leading-none tracking-[-0.045em] text-[var(--ink-primary)] tabular-nums sm:text-[72px]"
               data-testid="available-count"
             >
               {freeSpaces}
             </span>
-            <span className="mt-2 text-sm font-medium text-slate-600 dark:text-slate-300">
+            <span className="mt-2 text-[14px] font-medium text-[var(--ink-secondary)]">
               {freeSpaces === 1 ? 'Space free' : 'Spaces free'}
             </span>
-            <span className={`mt-1.5 text-xs font-semibold ${statusTextClass}`}>
+            <span className={`mt-1 text-[12px] font-semibold tracking-[-0.01em] ${statusTone.text}`}>
               {statusLabel}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Bottom Quantitative Summary separated by hairline divider */}
-      <div className="border-t border-slate-100 pt-5 dark:border-slate-800/80">
-        <div className="flex items-baseline justify-between text-sm">
-          <div className="text-slate-600 dark:text-slate-400">
-            <span className="font-mono font-semibold text-slate-900 tabular-nums dark:text-slate-100">
-              {snapshot.occupied}
-            </span>{' '}
+      {/* Bottom Capacity Meter */}
+      <div className="border-t border-[var(--hairline)] pt-5">
+        <div className="flex items-baseline justify-between text-[13px]">
+          <div className="text-[var(--ink-secondary)] tabular-nums">
+            <span className="font-semibold text-[var(--ink-primary)]">{snapshot.occupied}</span>{' '}
             of{' '}
-            <span className="font-mono font-semibold text-slate-900 tabular-nums dark:text-slate-100">
-              {snapshot.capacity}
-            </span>{' '}
+            <span className="font-semibold text-[var(--ink-primary)]">{snapshot.capacity}</span>{' '}
             occupied
           </div>
-          <span className="font-mono text-sm font-semibold text-slate-900 tabular-nums dark:text-slate-100">
+          <span className="font-semibold text-[var(--ink-primary)] tabular-nums">
             {clampedOccupancyPct}% full
           </span>
         </div>
 
         <div
-          className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+          className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-recessed)]"
           aria-hidden="true"
         >
-          <div
-            className={`h-full rounded-full transition-[width,background-color] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${barColorClass}`}
-            style={{width: `${clampedOccupancyPct}%`}}
+          <motion.div
+            className="h-full rounded-full"
+            style={{backgroundColor: statusTone.bar}}
+            initial={false}
+            animate={{width: `${clampedOccupancyPct}%`}}
+            transition={{type: 'spring', stiffness: 140, damping: 26}}
           />
         </div>
       </div>
